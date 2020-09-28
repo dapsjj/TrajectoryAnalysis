@@ -6,6 +6,10 @@ import os
 
 
 def testContectRemoteDatabase():
+    # cd /usr/local/cassandra/bin
+    # ./cqlsh
+    # USE howetech;
+    # COPY howetech.device_data  TO '/usr/local/cassandra/device_data_2020.scv';
     # df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20200924.csv', encoding='utf-8', parse_dates=[1], nrows=5)
     # df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20200924.csv', encoding='utf-8', parse_dates=[1],  names=['device_id','upload_time','latitude','longitude','mileage','other_vals','speed'])
     # df['upload_time_1'] = df['upload_time'].dt.strftime('%Y%m') #多了一列年月
@@ -28,7 +32,7 @@ def testContectRemoteDatabase():
         device_id = sub_dataframe['device_id'].iloc[0]
         upload_time_1 = sub_dataframe['upload_time_1'].iloc[0]
         sub_dataframe = sub_dataframe.sort_values(by=['upload_time'])
-        sub_dataframe.to_csv(r'E:/test_opencv/轨迹分析/device_data_sub_dataframe/'+str(device_id)+'_'+str(upload_time_1)+'.csv', index=False, mode='w', header=True)
+        sub_dataframe.to_csv(r'E:/test_opencv/轨迹分析/all_device_data_csv/'+str(device_id)+'_'+str(upload_time_1)+'.csv', index=False, mode='w', header=True)
         print('第'+str(i)+'张图') #第几个sub_dataframe
         fig = plt.figure(figsize=(20, 10))
         m = Basemap(llcrnrlon=77, llcrnrlat=14, urcrnrlon=140, urcrnrlat=51, projection='lcc', lat_1=33, lat_2=45,lon_0=100)
@@ -42,14 +46,15 @@ def testContectRemoteDatabase():
         x, y = m(lons, lats)
         plt.plot(x, y, 'bo', color='r', markersize=1)
         # plt.show()
-        plt.savefig(r'E:/test_opencv/轨迹分析/device_data_image/'+str(device_id)+'_'+str(upload_time_1)+'.png')
+        plt.savefig(r'E:/test_opencv/轨迹分析/all_device_data_image/'+str(device_id)+'_'+str(upload_time_1)+'.png')
         plt.close()
         i += 1
     '''
 
-    #把图片复制到对应的文件夹
-    imageDir = r'E:/test_opencv/轨迹分析/device_data_image/'
-    csvDir = r'E:/test_opencv/轨迹分析/device_data_sub_dataframe/'
+    '''
+    #把图片和csv复制到对应的文件夹
+    imageDir = r'E:/test_opencv/轨迹分析/all_device_data_image/'
+    csvDir = r'E:/test_opencv/轨迹分析/all_device_data_csv/'
     person_img_dir = r'E:/test_opencv/轨迹分析/person_image'
     device_img_dir = r'E:/test_opencv/轨迹分析/device_image'
     person_csv_dir = r'E:/test_opencv/轨迹分析/person_csv'
@@ -77,6 +82,44 @@ def testContectRemoteDatabase():
         if os.path.isfile(imageName) and os.path.isfile(csvlName):
             shutil.copy2(imageName, device_img_dir)
             shutil.copy2(csvlName, device_csv_dir)
+    '''
+
+    # 查看csv中的异常经纬度
+    device_csv_dir = r'E:/test_opencv/轨迹分析/device_csv/'
+    device_image_dir = r'E:/test_opencv/轨迹分析/device_image/'
+    normal_device_img_dir = r'E:/test_opencv/轨迹分析/normal_device_image'
+    normal_device_csv_dir = r'E:/test_opencv/轨迹分析/normal_device_csv'
+    abnormal_device_img_dir = r'E:/test_opencv/轨迹分析/abnormal_device_image'
+    abnormal_device_csv_dir = r'E:/test_opencv/轨迹分析/abnormal_device_csv'
+    normal_device_list = []
+    abnormal_device_list = []
+    for name in os.listdir(device_csv_dir):
+        csv_name = device_csv_dir + os.sep + name
+        df = pd.read_csv(csv_name, encoding='utf-8', parse_dates=[1], low_memory=False)
+        m1 = df[['latitude', 'longitude']].diff().abs().gt(0.1) #
+        m2 = df[['latitude', 'longitude']].shift().diff().abs().gt(0.1)
+        m = m1 | m2
+        latitude_diff_list = df.index[m['latitude']].tolist()
+        longitude_diff_list = df.index[m['longitude']].tolist()
+        if not latitude_diff_list and not longitude_diff_list: #如果经纬度的list为空，说明是正常数据
+            normal_device_list.append(name.split('.')[0])
+        else:
+            abnormal_device_list.append(name.split('.')[0])
+
+    for item in normal_device_list:
+        imageName = device_image_dir + str(item) + '.png'
+        csvlName = device_csv_dir + str(item) + '.csv'
+        if os.path.isfile(imageName) and os.path.isfile(csvlName):
+            shutil.copy2(imageName, normal_device_img_dir)
+            shutil.copy2(csvlName, normal_device_csv_dir)
+
+    for item in abnormal_device_list:
+        imageName = device_image_dir + str(item) + '.png'
+        csvlName = device_csv_dir + str(item) + '.csv'
+        if os.path.isfile(imageName) and os.path.isfile(csvlName):
+            shutil.copy2(imageName, abnormal_device_img_dir)
+            shutil.copy2(csvlName, abnormal_device_csv_dir)
+
 
 if __name__ == '__main__':
     testContectRemoteDatabase()
