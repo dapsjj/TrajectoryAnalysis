@@ -2,8 +2,12 @@ import pandas as pd
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 import shutil
-import os
 
+import os
+import numpy as np
+from sklearn.cluster import DBSCAN
+import matplotlib.pyplot as plt
+import pandas as pd
 
 def testContectRemoteDatabase():
     # cd /usr/local/cassandra/bin
@@ -95,30 +99,79 @@ def testContectRemoteDatabase():
     abnormal_device_list = []
     for name in os.listdir(device_csv_dir):
         csv_name = device_csv_dir + os.sep + name
+        print(csv_name)
         df = pd.read_csv(csv_name, encoding='utf-8', parse_dates=[1], low_memory=False)
-        m1 = df[['latitude', 'longitude']].diff().abs().gt(0.1) #
-        m2 = df[['latitude', 'longitude']].shift().diff().abs().gt(0.1)
-        m = m1 | m2
-        latitude_diff_list = df.index[m['latitude']].tolist()
-        longitude_diff_list = df.index[m['longitude']].tolist()
-        if not latitude_diff_list and not longitude_diff_list: #如果经纬度的list为空，说明是正常数据
-            normal_device_list.append(name.split('.')[0])
-        else:
-            abnormal_device_list.append(name.split('.')[0])
+        X = df.iloc[:,2:4]
+        # convert eps to radians for use by haversine
+        kms_per_rad = 6371.0088
+        epsilon = 1.5 / kms_per_rad
+        # Extract intersection coordinates (latitude, longitude)
+        dbsc = (DBSCAN(eps=epsilon, min_samples=1, algorithm='ball_tree', metric='haversine')
+                .fit(np.radians(X)))
+        fac_cluster_labels = dbsc.labels_
+        # get the number of clusters
+        num_clusters = len(set(dbsc.labels_))
+        # turn the clusters into a pandas series,where each element is a cluster of points
+        dbsc_clusters = pd.Series([X[fac_cluster_labels == n] for n in range(num_clusters)])
+        # get centroid of each cluster
+        fac_centroids = dbsc_clusters.map(get_centroid)
+        # unzip the list of centroid points (lat, lon) tuples into separate lat and lon lists
+        cent_lats, cent_lons = zip(*fac_centroids)
+        # from these lats/lons create a new df of one representative point for eac cluster
+        centroids_pd = pd.DataFrame({'longitude': cent_lons, 'latitude': cent_lats})
+        # Plot the faciity clusters and cluster centroid
+        fig, ax = plt.subplots(figsize=[20, 12])
+        facility_scatter = ax.scatter(X['longitude'], X['latitude'], c=fac_cluster_labels,
+                                       edgecolor='None', alpha=0.7, s=120)
+        centroid_scatter = ax.scatter(centroids_pd['longitude'], centroids_pd['latitude'], marker='x', linewidths=2,
+                                      c='k', s=50)
+        ax.set_title('Facility Clusters & Facility Centroid', fontsize=30)
+        ax.set_xlabel('Longitude', fontsize=24)
+        ax.set_ylabel('Latitude', fontsize=24)
+        ax.legend([facility_scatter, centroid_scatter], ['Facilities', 'Facility Cluster Centroid'], loc='upper right',
+                  fontsize=20)
+        plt.show()
+        plt.close()
 
-    for item in normal_device_list:
-        imageName = device_image_dir + str(item) + '.png'
-        csvlName = device_csv_dir + str(item) + '.csv'
-        if os.path.isfile(imageName) and os.path.isfile(csvlName):
-            shutil.copy2(imageName, normal_device_img_dir)
-            shutil.copy2(csvlName, normal_device_csv_dir)
 
-    for item in abnormal_device_list:
-        imageName = device_image_dir + str(item) + '.png'
-        csvlName = device_csv_dir + str(item) + '.csv'
-        if os.path.isfile(imageName) and os.path.isfile(csvlName):
-            shutil.copy2(imageName, abnormal_device_img_dir)
-            shutil.copy2(csvlName, abnormal_device_csv_dir)
+        # m1 = df[['latitude', 'longitude']].diff().abs().gt(0.1) #
+        # m2 = df[['latitude', 'longitude']].shift().diff().abs().gt(0.1)
+        # m = m1 | m2
+        # latitude_diff_list = df.index[m['latitude']].tolist()
+        # longitude_diff_list = df.index[m['longitude']].tolist()
+        # if not latitude_diff_list and not longitude_diff_list: #如果经纬度的list为空，说明是正常数据
+        #     normal_device_list.append(name.split('.')[0])
+        # else:
+        #     abnormal_device_list.append(name.split('.')[0])
+
+    # for item in normal_device_list:
+    #     imageName = device_image_dir + str(item) + '.png'
+    #     csvlName = device_csv_dir + str(item) + '.csv'
+    #     if os.path.isfile(imageName) and os.path.isfile(csvlName):
+    #         shutil.copy2(imageName, normal_device_img_dir)
+    #         shutil.copy2(csvlName, normal_device_csv_dir)
+
+    # for item in abnormal_device_list:
+    #     imageName = device_image_dir + str(item) + '.png'
+    #     csvlName = device_csv_dir + str(item) + '.csv'
+    #     if os.path.isfile(imageName) and os.path.isfile(csvlName):
+    #         shutil.copy2(imageName, abnormal_device_img_dir)
+    #         shutil.copy2(csvlName, abnormal_device_csv_dir)
+
+
+def get_centroid(cluster):
+    """calculate the centroid of a cluster of geographic coordinate points
+    Args:
+      cluster coordinates, nx2 array-like (array, list of lists, etc)
+      n is the number of points(latitude, longitude)in the cluster.
+    Return:
+      geometry centroid of the cluster
+
+    """
+    cluster_ary = np.asarray(cluster)
+    centroid = cluster_ary.mean(axis=0)
+    return centroid
+
 
 
 if __name__ == '__main__':
