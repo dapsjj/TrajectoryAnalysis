@@ -109,8 +109,8 @@ def testContectRemoteDatabase():
         kms_per_rad = 6371.0088
         epsilon = 1.5 / kms_per_rad
         # Extract intersection coordinates (latitude, longitude)
-        # dbsc = (DBSCAN(eps=epsilon, min_samples=1, algorithm='ball_tree', metric='haversine',n_jobs=1).fit(np.radians(X)))
-        dbsc = (DBSCAN(eps=epsilon, min_samples=1,n_jobs=1).fit(np.radians(X)))
+        dbsc = (DBSCAN(eps=epsilon, min_samples=1, algorithm='ball_tree', metric='haversine').fit(np.radians(X)))
+        # dbsc = (DBSCAN(eps=epsilon, min_samples=1,n_jobs=1).fit(np.radians(X)))
         fac_cluster_labels = dbsc.labels_
         # get the number of clusters
         num_clusters = len(set(dbsc.labels_))
