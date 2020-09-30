@@ -100,14 +100,17 @@ def testContectRemoteDatabase():
     for name in os.listdir(device_csv_dir):
         csv_name = device_csv_dir + os.sep + name
         print(csv_name)
+        names = ['device_id', 'upload_time', 'latitude', 'longitude', 'mileage', 'other_vals', 'speed', 'upload_time_1']
         df = pd.read_csv(csv_name, encoding='utf-8', parse_dates=[1], low_memory=False)
-        X = df.iloc[:,2:4]
+        X = df[['latitude', 'longitude']]
+        X = X.drop_duplicates()
+        # X = df.iloc[:,2:4]
         # convert eps to radians for use by haversine
         kms_per_rad = 6371.0088
         epsilon = 1.5 / kms_per_rad
         # Extract intersection coordinates (latitude, longitude)
-        dbsc = (DBSCAN(eps=epsilon, min_samples=1, algorithm='ball_tree', metric='haversine')
-                .fit(np.radians(X)))
+        # dbsc = (DBSCAN(eps=epsilon, min_samples=1, algorithm='ball_tree', metric='haversine',n_jobs=1).fit(np.radians(X)))
+        dbsc = (DBSCAN(eps=epsilon, min_samples=1,n_jobs=1).fit(np.radians(X)))
         fac_cluster_labels = dbsc.labels_
         # get the number of clusters
         num_clusters = len(set(dbsc.labels_))
@@ -120,7 +123,7 @@ def testContectRemoteDatabase():
         # from these lats/lons create a new df of one representative point for eac cluster
         centroids_pd = pd.DataFrame({'longitude': cent_lons, 'latitude': cent_lats})
         # Plot the faciity clusters and cluster centroid
-        fig, ax = plt.subplots(figsize=[20, 12])
+        fig, ax = plt.subplots(figsize=[20, 10])
         facility_scatter = ax.scatter(X['longitude'], X['latitude'], c=fac_cluster_labels,
                                        edgecolor='None', alpha=0.7, s=120)
         centroid_scatter = ax.scatter(centroids_pd['longitude'], centroids_pd['latitude'], marker='x', linewidths=2,
