@@ -10,10 +10,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 def testContectRemoteDatabase():
-    # cd /usr/local/cassandra/bin
-    # ./cqlsh
-    # USE howetech;
-    # COPY howetech.device_data  TO '/usr/local/cassandra/device_data_2020.scv';
     # df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20200924.csv', encoding='utf-8', parse_dates=[1], nrows=5)
     # df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20200924.csv', encoding='utf-8', parse_dates=[1],  names=['device_id','upload_time','latitude','longitude','mileage','other_vals','speed'])
     # df['upload_time_1'] = df['upload_time'].dt.strftime('%Y%m') #多了一列年月
@@ -133,7 +129,8 @@ def testContectRemoteDatabase():
         ax.set_ylabel('Latitude', fontsize=24)
         ax.legend([facility_scatter, centroid_scatter], ['Facilities', 'Facility Cluster Centroid'], loc='upper right',
                   fontsize=20)
-        plt.show()
+        # plt.show()
+        plt.savefig(r'E:/test_opencv/轨迹分析/device_DBSCAN_image/' + name.split('.')[0] + '.png')
         plt.close()
 
 
