@@ -1,14 +1,18 @@
-import pandas as pd
 from mpl_toolkits.basemap import Basemap
-import matplotlib.pyplot as plt
 import shutil
 import os
 import numpy as np
 from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
 import pandas as pd
+from pyecharts.charts import Geo
+from pyecharts import options
+from pyecharts.globals import GeoType
+
 
 def testContectRemoteDatabase():
+
+    '''
     # 给csv增加一列年月
     # df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20201007.csv', encoding='utf-8', parse_dates=[1], nrows=5)
     df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20201007.csv', encoding='utf-8', parse_dates=[1],  names=['device_id','upload_time','latitude','longitude','mileage','other_vals','speed'])
@@ -16,9 +20,9 @@ def testContectRemoteDatabase():
     df.to_csv(r'E:/test_opencv/轨迹分析/device_data.csv', index=False, mode='w', header=True)
     # latitude_list = df.latitude.values.tolist()
     # longitude_list = df.longitude.values.tolist()
+    '''
 
-
-
+    '''
     # 把大csv拆分成小csv
     df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data.csv', encoding='utf-8',parse_dates=[1],low_memory=False)
     #device_id长度[11,14,15,16]
@@ -51,10 +55,10 @@ def testContectRemoteDatabase():
         plt.savefig(r'E:/test_opencv/轨迹分析/all_device_data_image/'+str(device_id)+'_'+str(upload_time_1)+'.png')
         plt.close()
         i += 1
+    '''
 
 
-
-
+    '''
     # 按照设备和人进行区别，把图片和csv复制到对应的文件夹
     imageDir = r'E:/test_opencv/轨迹分析/all_device_data_image/'
     csvDir = r'E:/test_opencv/轨迹分析/all_device_data_csv/'
@@ -85,7 +89,7 @@ def testContectRemoteDatabase():
         if os.path.isfile(imageName) and os.path.isfile(csvlName):
             shutil.copy2(imageName, device_img_dir)
             shutil.copy2(csvlName, device_csv_dir)
-
+    '''
 
 
 
@@ -99,9 +103,13 @@ def testContectRemoteDatabase():
     abnormal_device_csv_dir = r'E:/test_opencv/轨迹分析/abnormal_device_csv/'
     normal_dbscan_device_img_dir = r'E:/test_opencv/轨迹分析/normal_dbscan_device_image/'
     abnormal_dbscan_device_img_dir = r'E:/test_opencv/轨迹分析/abnormal_dbscan_device_image/'
+    normal_pyecharts_device_img_dir = r'E:/test_opencv/轨迹分析/normal_pyecharts_device_image/'
+    abnormal_pyecharts_device_img_dir = r'E:/test_opencv/轨迹分析/abnormal_pyecharts_device_image/'
+
     normal_device_list = []
     abnormal_device_list = []
 
+    '''
     #经纬度差1度的数据分文件夹存放
     for name in os.listdir(device_csv_dir):
         csv_name = device_csv_dir + name
@@ -116,7 +124,7 @@ def testContectRemoteDatabase():
             normal_device_list.append(name.split('.')[0])
         else:
             abnormal_device_list.append(name.split('.')[0])
-
+    
     for item in normal_device_list:
         imageName = device_image_dir + str(item) + '.png'
         csvlName = device_csv_dir + str(item) + '.csv'
@@ -130,17 +138,38 @@ def testContectRemoteDatabase():
         if os.path.isfile(imageName) and os.path.isfile(csvlName):
             shutil.copy2(imageName, abnormal_device_img_dir)
             shutil.copy2(csvlName, abnormal_device_csv_dir)
-
-    #正常的数据聚类
+    '''
+    #正常的数据聚类、pyecharts
     for item in os.listdir(normal_device_csv_dir):
         csvlName = normal_device_csv_dir + item
-        draw_with_dbscan(csvlName, item, normal_dbscan_device_img_dir)
+        # draw_with_dbscan(csvlName, item, normal_dbscan_device_img_dir)
+        draw_with_echarts(csvlName, item, normal_pyecharts_device_img_dir)
 
-    #不正常的数据聚类
+    #不正常的数据聚类、pyecharts
     for item in os.listdir(abnormal_device_csv_dir):
         csvlName = abnormal_device_csv_dir + item
-        draw_with_dbscan(csvlName, item, abnormal_dbscan_device_img_dir)
+        # draw_with_dbscan(csvlName, item, abnormal_dbscan_device_img_dir)
+        draw_with_echarts(csvlName, item, abnormal_pyecharts_device_img_dir)
 
+
+def draw_with_echarts(para_csv_path_name,para_csv_name,para_save_path):
+    names = ['device_id', 'upload_time', 'latitude', 'longitude', 'mileage', 'other_vals', 'speed', 'upload_time_1']
+    df = pd.read_csv(para_csv_path_name, encoding='utf-8', low_memory=False)
+    X = df.drop_duplicates(subset=['longitude', 'latitude'])#删除经纬度重复的行
+    g = Geo()
+    g.add_schema(maptype="china")
+    # 给所有点附上标签 'upload_time'
+    for index, row in X.iterrows():
+        g.add_coordinate(row['upload_time'], row['longitude'], row['latitude'])
+    upload_time = X.upload_time.values.tolist()
+    # 给每个点的值赋为 1
+    data_list = [(item, 1) for item in upload_time]
+    # 画图
+    g.add('', data_list, type_=GeoType.EFFECT_SCATTER, symbol_size=2)
+    g.set_series_opts(label_opts=options.LabelOpts(is_show=False))
+    g.set_global_opts(title_opts=options.TitleOpts(title="轨迹分布", pos_left='50%', pos_top='20'))
+    # 保存结果到 html
+    result = g.render(para_save_path + para_csv_name.split('.')[0] + '.html')
 
 
 def draw_with_dbscan(para_csv_path_name,para_csv_name,para_save_path):
