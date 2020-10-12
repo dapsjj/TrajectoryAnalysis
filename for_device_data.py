@@ -1,6 +1,7 @@
 from mpl_toolkits.basemap import Basemap
 import shutil
 import os
+import logging
 import numpy as np
 from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
@@ -8,7 +9,11 @@ import pandas as pd
 from pyecharts.charts import Geo
 from pyecharts import options
 from pyecharts.globals import GeoType
+from datetime import datetime
+import time
 
+
+now_date = datetime.now().strftime('%Y%m%d')
 
 def testContectRemoteDatabase():
 
@@ -223,7 +228,26 @@ def get_centroid(cluster):
     centroid = cluster_ary.mean(axis=0)
     return centroid
 
-
+def write_log():
+    logger = logging.getLogger()
+    log_file = now_date + ".log"  # 文件日志
+    if not os.path.exists(os.path.join(os.path.dirname(__file__)) + os.sep + 'log'):
+        os.makedirs(os.path.join(os.path.dirname(__file__)) + os.sep + 'log')
+    formatter = logging.Formatter('%(asctime)s %(levelname)s line:%(lineno)s %(message)s')
+    file_handler = logging.FileHandler(os.path.join(os.path.dirname(__file__)) + os.sep + 'log' + os.sep + log_file, mode='a', encoding='utf-8')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.setLevel(logging.INFO)
+    return logger
 
 if __name__ == '__main__':
+    logger = write_log()  # 获取日志对象
+    time_start = datetime.now()
+    start = time.time()
     testContectRemoteDatabase()
+    logger.info("Program starts,now time is:" + str(time_start))
+    time_end = datetime.now()
+    end = time.time()
+    logger.info("Program ends,now time is:" + str(time_end))
+    logger.info("Program ran for : %f seconds" % (end - start))
+
