@@ -42,6 +42,6 @@ data_list = [[item,1] for item in upload_time]
 # 画图
 g.add('',data_list, type_=GeoType.HEATMAP, symbol_size=2)
 g.set_series_opts(label_opts=opts.LabelOpts(is_show=False))
-g.set_global_opts(visualmap_opts=opts.VisualMapOpts(),title_opts=opts.TitleOpts(title="Geo-HeatMap"))
+g.set_global_opts(visualmap_opts=opts.VisualMapOpts(),title_opts=opts.TitleOpts(title="Geo-HeatMap",pos_left='50%',pos_top='20'))
 # 保存结果到 html
 result = g.render(r'E:\test_opencv\轨迹分析\1.html')
