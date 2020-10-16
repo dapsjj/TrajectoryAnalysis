@@ -185,17 +185,17 @@ def draw_with_echarts_scatter():
         result = g.render(pyecharts_device_html_dir +  str(staff_name) + '_' +str(car_num) + '_' + str(create_time_1) + '.html')
 
 
-def draw_with_folium_all_points_and_dbscan_center():
-    '''先使用maker聚类中心生成簇心，再使用每辆车每个月的停留点作成maker坐标，再'''
+def draw_with_folium_all_points_and_dbscan_center_circle_style():
+    '''先使用maker聚类中心生成簇心，再使用每辆车每个月的停留点作成maker坐标，中心点是圆'''
     all_device_csv_dir = r'E:/test_opencv/车辆经常停留位置/all_device_data_csv/' #所有车辆坐标csv
     dbscan_center_coordinates_csv_dir = r'E:/test_opencv/车辆经常停留位置/dbscan_get_center_coordinates_csv/' #中心点csv
-    folium_all_points_and_dbscan_center_html_dir = r'E:/test_opencv/车辆经常停留位置/folium_all_points_and_dbscan_center_html/'
+    folium_all_points_and_dbscan_center_circle_html_dir = r'E:/test_opencv/车辆经常停留位置/folium_all_points_and_dbscan_center_circle_html/'
     if not os.path.exists(all_device_csv_dir):
         os.makedirs(all_device_csv_dir)
     if not os.path.exists(dbscan_center_coordinates_csv_dir):
         os.makedirs(dbscan_center_coordinates_csv_dir)
-    if not os.path.exists(folium_all_points_and_dbscan_center_html_dir):
-        os.makedirs(folium_all_points_and_dbscan_center_html_dir)
+    if not os.path.exists(folium_all_points_and_dbscan_center_circle_html_dir):
+        os.makedirs(folium_all_points_and_dbscan_center_circle_html_dir)
 
     for item in os.listdir(all_device_csv_dir):
         '''处理dbscan聚类后中心点坐标'''
@@ -218,7 +218,7 @@ def draw_with_folium_all_points_and_dbscan_center():
             element_count_in_this_cluster = int(row['length'])
             popup = folium.Popup('该中心点周围共有'+str(element_count_in_this_cluster)+'个停留点', show=True, max_width=400)#show=True代表地图加载是显示簇心周围有几个maker
             folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup,color='red', fill=True,fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
-
+            # folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
 
 
         '''处理所有坐标'''
@@ -241,10 +241,70 @@ def draw_with_folium_all_points_and_dbscan_center():
             # folium.Circle(location=[row['remain_latitude'], row['remain_longitude']],radius=100,color='red',fill=False).add_to(m) #radius单位是米
             folium.Marker(location=[row['remain_latitude'], row['remain_longitude']]).add_to(m) #radius单位是米
 
-        url = folium_all_points_and_dbscan_center_html_dir + str(staff_name) + '_' + str(car_num) + '_' + str(year_month) + '.html'
+        url = folium_all_points_and_dbscan_center_circle_html_dir + str(staff_name) + '_' + str(car_num) + '_' + str(year_month) + '.html'
         m.save(url)
         # save_screen_shot(url) #html截图
 
+
+def draw_with_folium_all_points_and_dbscan_center_maker_style():
+    '''先使用maker聚类中心生成簇心，再使用每辆车每个月的停留点作成maker坐标，中心点是maker样式'''
+    all_device_csv_dir = r'E:/test_opencv/车辆经常停留位置/all_device_data_csv/' #所有车辆坐标csv
+    dbscan_center_coordinates_csv_dir = r'E:/test_opencv/车辆经常停留位置/dbscan_get_center_coordinates_csv/' #中心点csv
+    folium_all_points_and_dbscan_center_maker_html_dir = r'E:/test_opencv/车辆经常停留位置/folium_all_points_and_dbscan_center_maker_html/'
+    if not os.path.exists(all_device_csv_dir):
+        os.makedirs(all_device_csv_dir)
+    if not os.path.exists(dbscan_center_coordinates_csv_dir):
+        os.makedirs(dbscan_center_coordinates_csv_dir)
+    if not os.path.exists(folium_all_points_and_dbscan_center_maker_html_dir):
+        os.makedirs(folium_all_points_and_dbscan_center_maker_html_dir)
+
+    for item in os.listdir(all_device_csv_dir):
+        '''处理dbscan聚类后中心点坐标'''
+        dbscan_center_coordinates_csv_name = dbscan_center_coordinates_csv_dir + item
+        df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
+        length_df = len(df)
+        # 计算dataframe经纬度中心坐标
+        longitude_center = df['longitude'].mean()
+        latitude_center = df['latitude'].mean()
+        # X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        X = df
+        device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        staff_id = X['staff_id'].iloc[0]  # 取组内第一个staff_id用于存csv用
+        staff_name = X['staff_name'].iloc[0]  # 取组内第一个staff_name用于存csv用
+        car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        year_month = X['year_month'].iloc[0]  # 取组内第一个year_month用于存csv用
+        m = folium.Map(location=[latitude_center, longitude_center], zoom_start=10, control_scale=True)
+        for index, row in X.iterrows():
+            element_count_in_this_cluster = int(row['length'])
+            popup = folium.Popup('该中心点周围共有'+str(element_count_in_this_cluster)+'个停留点', show=True, max_width=400)#show=True代表地图加载是显示簇心周围有几个maker
+            # folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup,color='red', fill=True,fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
+            folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
+
+
+        '''处理所有坐标'''
+        all_device_csv_name = all_device_csv_dir + item
+        df = pd.read_csv(all_device_csv_name, encoding='utf-8', low_memory=False)
+        length_df = len(df)
+        # 计算dataframe经纬度中心坐标
+        longitude_center = df['remain_longitude'].mean()
+        latitude_center = df['remain_latitude'].mean()
+        # X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        X = df
+        device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        staff_id = X['staff_id'].iloc[0]  # 取组内第一个staff_id用于存csv用
+        staff_name = X['staff_name'].iloc[0]  # 取组内第一个staff_name用于存csv用
+        car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        create_time_1 = X['create_time_1'].iloc[0]  # 取组内第一个create_time_1用于存csv用
+        # m = folium.Map(location=[latitude_center, longitude_center],zoom_start=12,control_scale=True)
+        for index, row in X.iterrows():
+            # folium.Circle(location=[row['remain_latitude'], row['remain_longitude']],radius=100,color='red',fill=False).add_to(m) #radius单位是米
+            folium.Marker(location=[row['remain_latitude'], row['remain_longitude']]).add_to(m) #radius单位是米
+
+        url = folium_all_points_and_dbscan_center_maker_html_dir + str(staff_name) + '_' + str(car_num) + '_' + str(year_month) + '.html'
+        m.save(url)
+        # save_screen_shot(url) #html截图
 
 def save_screen_shot(para_url):
     '''打开浏览器并且截图'''
@@ -368,7 +428,8 @@ if __name__ == '__main__':
     split_big_csv_to_small_csv()
     draw_with_echarts_scatter() #使用pyecharts画散点图
     dbscan_get_center_coordinates()#使用所有停留轨迹生成聚类中心坐标csv文件
-    draw_with_folium_all_points_and_dbscan_center()
+    draw_with_folium_all_points_and_dbscan_center_circle_style()#中心点是圆
+    draw_with_folium_all_points_and_dbscan_center_maker_style()#中心点是maker
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
