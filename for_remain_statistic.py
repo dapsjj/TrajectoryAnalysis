@@ -368,7 +368,7 @@ def dbscan_get_center_coordinates():
         centroids_pd['car_id'] = car_id
         centroids_pd['car_num'] = car_num
         centroids_pd['year_month'] = create_time_1
-        centroids_pd.to_csv(dbscan_get_center_coordinates_csv_dir  + str(staff_name) + '_' + str(car_num) + '_' + str(create_time_1) + '.csv', index=False, mode='w', header=True)
+        centroids_pd.to_csv(dbscan_get_center_coordinates_csv_dir  + str(staff_name) + '_' + str(car_num) + '_' + str(create_time_1) + '.csv', index=False, mode='w', header=True,encoding='utf-8')
 
 
 
@@ -410,7 +410,7 @@ def split_big_csv_to_small_csv():
         car_num = sub_dataframe['car_num'].iloc[0]#取组内第一个car_num用于存csv用
         create_time_1 = sub_dataframe['create_time_1'].iloc[0]#取组内第一个create_time_1用于存csv用
         sub_dataframe = sub_dataframe.sort_values(by=['create_time'])
-        sub_dataframe.to_csv(device_csv_dir  + str(staff_name) + '_' +str(car_num) + '_' + str(create_time_1) + '.csv',index=False, mode='w', header=True)
+        sub_dataframe.to_csv(device_csv_dir  + str(staff_name) + '_' +str(car_num) + '_' + str(create_time_1) + '.csv',index=False, mode='w', header=True,encoding='utf-8')
 
 
 
