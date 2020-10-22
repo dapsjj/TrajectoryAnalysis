@@ -236,18 +236,11 @@ def splitCarAndPersonToCSV():
             if os.path.isfile(csvlName):
                 shutil.copy2(csvlName, device_csv_dir) #把车的csv复制到车的文件夹
 
-
         # 查看csv中的异常经纬度
-        normal_device_img_dir = r'E:/test_opencv/轨迹分析/normal_device_image/'
         normal_device_csv_dir = r'E:/test_opencv/轨迹分析/normal_device_csv/'
-        abnormal_device_img_dir = r'E:/test_opencv/轨迹分析/abnormal_device_image/'
         abnormal_device_csv_dir = r'E:/test_opencv/轨迹分析/abnormal_device_csv/'
-        if not os.path.exists(normal_device_img_dir):
-            os.makedirs(normal_device_img_dir)
         if not os.path.exists(normal_device_csv_dir):
             os.makedirs(normal_device_csv_dir)
-        if not os.path.exists(abnormal_device_img_dir):
-            os.makedirs(abnormal_device_img_dir)
         if not os.path.exists(abnormal_device_csv_dir):
             os.makedirs(abnormal_device_csv_dir)
 
@@ -257,6 +250,7 @@ def splitCarAndPersonToCSV():
         for name in os.listdir(device_csv_dir):
             csv_name = device_csv_dir + name
             df = pd.read_csv(csv_name, encoding='utf-8', parse_dates=[1],low_memory=False)
+            df = df.drop_duplicates(subset=['longitude', 'latitude']) #去重
             m1 = df[['latitude', 'longitude']].diff().abs().gt(0.1)
             m2 = df[['latitude', 'longitude']].shift().diff().abs().gt(0.1)
             m = m1 | m2
@@ -270,23 +264,160 @@ def splitCarAndPersonToCSV():
         for item in normal_device_list:
             csvlName = device_csv_dir + str(item) + '.csv'
             if os.path.isfile(csvlName):
-                shutil.copy2(csvlName, normal_device_csv_dir)
+                shutil.copy2(csvlName, normal_device_csv_dir) #复制到正常的车辆csv文件夹中
 
         for item in abnormal_device_list:
             csvlName = device_csv_dir + str(item) + '.csv'
             if os.path.isfile(csvlName):
-                shutil.copy2(csvlName, abnormal_device_csv_dir)
+                shutil.copy2(csvlName, abnormal_device_csv_dir) #复制到异常的车辆csv文件夹中
 
-        # 正常的数据pyecharts画图
-        for item in os.listdir(normal_device_csv_dir):
-            csvlName = normal_device_csv_dir + item
-            # draw_with_echarts(csvlName, item, normal_device_img_dir)
 
-        # 不正常的数据pyecharts画图
-        for item in os.listdir(abnormal_device_csv_dir):
-            csvlName = abnormal_device_csv_dir + item
-            # draw_with_echarts(csvlName, item, abnormal_device_img_dir)
+def draw_with_folium_all_points_maker_style():
+    '''使用每辆车每个月的停留点作成maker坐标'''
+    normal_device_html_dir = r'E:/test_opencv/轨迹分析/normal_device_html/'
+    normal_device_csv_dir = r'E:/test_opencv/轨迹分析/normal_device_csv/'
+    abnormal_device_html_dir = r'E:/test_opencv/轨迹分析/abnormal_device_html/'
+    abnormal_device_csv_dir = r'E:/test_opencv/轨迹分析/abnormal_device_csv/'
+    continuous_abnormal_device_csv_dir = r'E:/test_opencv/轨迹分析/continuous_abnormal_device_csv/'
+    if not os.path.exists(normal_device_html_dir):
+        os.makedirs(normal_device_html_dir)
+    if not os.path.exists(normal_device_csv_dir):
+        os.makedirs(normal_device_csv_dir)
+    if not os.path.exists(abnormal_device_html_dir):
+        os.makedirs(abnormal_device_html_dir)
+    if not os.path.exists(abnormal_device_csv_dir):
+        os.makedirs(abnormal_device_csv_dir)
+    if not os.path.exists(continuous_abnormal_device_csv_dir):
+        os.makedirs(continuous_abnormal_device_csv_dir)
 
+    #对正常轨迹使用folium画图
+    '''
+    for item in os.listdir(normal_device_csv_dir):
+        #处理所有坐标
+        normal_device_csv_name = normal_device_csv_dir + item
+        df = pd.read_csv(normal_device_csv_name, encoding='utf-8', low_memory=False)
+        length_df = len(df)
+        X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        # 计算dataframe经纬度中心坐标
+        longitude_center = X['longitude'].mean()
+        latitude_center = X['latitude'].mean()
+        device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        marketer_name = X['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+        car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        upload_time_year_month = X['upload_time_year_month'].iloc[0]  # 取组内第一个create_time_1用于存csv用
+        m = folium.Map(location=[latitude_center, longitude_center],zoom_start=12,control_scale=True)
+        for index, row in X.iterrows():
+            # folium.Circle(location=[row['latitude'], row['longitude']],radius=100,color='red',fill=False).add_to(m) #radius单位是米
+            folium.Marker(location=[row['latitude'], row['longitude']]).add_to(m) #radius单位是米
+        url = normal_device_html_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month) + '.html'
+        m.save(url)
+        # save_screen_shot(url) #html截图
+    '''
+
+    # 对异常轨迹使用folium画图,异常的坐标用红色标记
+    for item in os.listdir(abnormal_device_csv_dir):
+        #处理所有坐标
+        abnormal_device_csv_name = abnormal_device_csv_dir + item
+        df = pd.read_csv(abnormal_device_csv_name, encoding='utf-8', low_memory=False)
+        length_df = len(df)
+        X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        # 计算dataframe经纬度中心坐标
+        longitude_center = df['longitude'].mean()
+        latitude_center = df['latitude'].mean()
+        device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        marketer_name = X['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+        car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        upload_time_year_month = X['upload_time_year_month'].iloc[0]  # 取组内第一个create_time_1用于存csv用
+        m = folium.Map(location=[latitude_center, longitude_center], zoom_start=12, control_scale=True)
+        # for index, row in X.iterrows():
+        #     folium.Marker(location=[row['latitude'], row['longitude']]).add_to(m)  # radius单位是米
+
+        # 计算连续异常坐标的位置
+        m1 = df[['latitude', 'longitude']].diff().abs().gt(0.1).any(axis=1)
+        # 连续异常坐标放到新的dataframe中
+        continuous_abnormal_coordinates_df = df[m1 | m1.shift(-1)].copy()
+        #连续异常点的坐标存入csv
+        continuous_abnormal_coordinates_df.to_csv(continuous_abnormal_device_csv_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month) + '.csv',index=False, mode='w', header=True, encoding='utf-8')
+        if not continuous_abnormal_coordinates_df.empty: #dataframe不是空才画图
+            for index, row in continuous_abnormal_coordinates_df.iterrows():
+                # folium.Circle(location=[row['latitude'], row['longitude']],radius=100,color='red',fill=False).add_to(m) #radius单位是米
+                folium.Marker(location=[row['latitude'], row['longitude']], icon=folium.Icon(color='red')).add_to(m) #红色标记
+
+        url = abnormal_device_html_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month) + '.html'
+        m.save(url)
+        # save_screen_shot(url) #html截图
+
+
+def splitMonthDataToDayData():
+    '''把月别的数据拆分成天别的数据'''
+    normal_device_csv_dir = r'E:/test_opencv/轨迹分析/normal_device_csv/'
+    abnormal_device_csv_dir = r'E:/test_opencv/轨迹分析/abnormal_device_csv/'
+    device_csv_dir = r'E:/test_opencv/轨迹分析/device_csv/'
+    day_device_csv_dir = r'E:/test_opencv/轨迹分析/day_device_csv/'
+    if not os.path.exists(day_device_csv_dir):
+        os.makedirs(day_device_csv_dir)
+    for item in os.listdir(device_csv_dir):
+        device_csv_name = device_csv_dir + item
+        df = pd.read_csv(device_csv_name, parse_dates=[7], encoding='utf-8', low_memory=False)
+        df['upload_time_year_month_day'] = df['upload_time_add_8hour'].dt.strftime('%Y%m%d')  # 多了一列年月日
+        df['upload_time_year_month_day'] = df['upload_time_year_month_day'].astype(str)
+        gb = df.groupby(['device_id', 'upload_time_year_month_day'])
+        sub_dataframe_list = []
+        for i in gb.indices:
+            sub_df = pd.DataFrame(gb.get_group(i))
+            sub_dataframe_list.append(sub_df)
+
+        # speed0_dataframe_list = []
+        for sub_dataframe in sub_dataframe_list:
+            device_id = sub_dataframe['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+            marketer_name = sub_dataframe['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+            car_num = sub_dataframe['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+            upload_time_year_month = sub_dataframe['upload_time_year_month'].iloc[0]  # 取组内第一个upload_time_year_month用于存csv用
+            upload_time_year_month_day = sub_dataframe['upload_time_year_month_day'].iloc[0]  # 取组内第一个upload_time_year_month_day用于存csv用
+            df_speed0 = sub_dataframe[sub_dataframe['speed'].astype(float) == 0.0]
+        #     if not df_speed0.empty:
+        #         speed0_dataframe_list.append(df_speed0)
+            sub_dataframe.to_csv(day_device_csv_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month_day) + '.csv', index=False, mode='w', header=True, encoding='utf-8')
+
+
+        # if speed0_dataframe_list:
+        #     result = pd.concat(speed0_dataframe_list,ignore_index=False)
+        #     result = result.sort_values(by=['upload_time'])
+        #     result.to_csv(speed0_device_csv_dir + str(marketer_name) + '_' +str(car_num) + '_' + str(upload_time_year_month) + '.csv',index=False, mode='w', header=True, encoding='utf-8')
+
+
+def use_everyday_data_to_draw_with_folium_maker():
+    '''使用天别的数据在地图上用maker画图,蓝色是速度不为0的点，红色为速度为0的点'''
+    day_device_csv_dir = r'E:/test_opencv/轨迹分析/day_device_csv/'
+    day_device_html_dir = r'E:/test_opencv/轨迹分析/day_device_html/'
+    if not os.path.exists(day_device_html_dir):
+        os.makedirs(day_device_html_dir)
+    for item in os.listdir(day_device_csv_dir):
+        #处理所有坐标
+        day_device_csv_name = day_device_csv_dir + item
+        df = pd.read_csv(day_device_csv_name, encoding='utf-8', low_memory=False)
+        X = df
+        # X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        # 计算dataframe经纬度中心坐标
+        longitude_center = df['longitude'].mean()
+        latitude_center = df['latitude'].mean()
+        device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        marketer_name = X['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+        car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        upload_time_year_month_day = X['upload_time_year_month_day'].iloc[0]  # 取组内第一个upload_time_year_month_day用于存csv用
+        df_speed0 = X[X['speed'].astype(float) == 0.0]
+        df_speed_not_0 = X[X['speed'].astype(float) != 0.0]
+        m = folium.Map(location=[latitude_center, longitude_center], zoom_start=12, control_scale=True)
+        for index, row in df_speed0.iterrows():
+            folium.Marker(location=[row['latitude'], row['longitude']], icon=folium.Icon(color='red')).add_to(m) #速度为0的点红色标记
+        for index, row in df_speed_not_0.iterrows():
+            folium.Marker(location=[row['latitude'], row['longitude']]).add_to(m) #速度不为0的点蓝色标记
+        url = day_device_html_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month_day) + '.html'
+        m.save(url)
+        # save_screen_shot(url) #html截图
 
 def get_data_from_common_car_info_and_marketer_info():
     '''从howetech.common_car_info获取全表数据'''
@@ -548,7 +679,10 @@ if __name__ == '__main__':
     # cassandraDataToDataframe()
     # merge_device_data_and_common_car_info()
     # delete_not_need_analysis_data_from_merge_device_data()
-    splitCarAndPersonToCSV()
+    # splitCarAndPersonToCSV()
+    #draw_with_folium_all_points_maker_style()
+    # splitMonthDataToDayData()
+    use_everyday_data_to_draw_with_folium_maker()
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
