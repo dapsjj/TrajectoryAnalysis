@@ -369,23 +369,13 @@ def splitMonthDataToDayData():
             sub_df = pd.DataFrame(gb.get_group(i))
             sub_dataframe_list.append(sub_df)
 
-        # speed0_dataframe_list = []
         for sub_dataframe in sub_dataframe_list:
             device_id = sub_dataframe['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
             marketer_name = sub_dataframe['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
             car_num = sub_dataframe['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
             upload_time_year_month = sub_dataframe['upload_time_year_month'].iloc[0]  # 取组内第一个upload_time_year_month用于存csv用
             upload_time_year_month_day = sub_dataframe['upload_time_year_month_day'].iloc[0]  # 取组内第一个upload_time_year_month_day用于存csv用
-            df_speed0 = sub_dataframe[sub_dataframe['speed'].astype(float) == 0.0]
-        #     if not df_speed0.empty:
-        #         speed0_dataframe_list.append(df_speed0)
             sub_dataframe.to_csv(day_device_csv_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month_day) + '.csv', index=False, mode='w', header=True, encoding='utf-8')
-
-
-        # if speed0_dataframe_list:
-        #     result = pd.concat(speed0_dataframe_list,ignore_index=False)
-        #     result = result.sort_values(by=['upload_time'])
-        #     result.to_csv(speed0_device_csv_dir + str(marketer_name) + '_' +str(car_num) + '_' + str(upload_time_year_month) + '.csv',index=False, mode='w', header=True, encoding='utf-8')
 
 
 def use_everyday_data_to_draw_with_folium_maker():
@@ -418,6 +408,44 @@ def use_everyday_data_to_draw_with_folium_maker():
         url = day_device_html_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month_day) + '.html'
         m.save(url)
         # save_screen_shot(url) #html截图
+
+
+def use_everyday_stay_more_than_5_minutes_to_generate_month_csv():
+    '''使用device_data轨迹数据中每天停留超过5分钟的坐标去生成一个月的停留点csv'''
+    device_csv_dir = r'E:/test_opencv/轨迹分析/device_csv/'
+    device_stay_more_than_5_minutes_everyday_in_month_csv_dir = r'E:/test_opencv/轨迹分析/device_stay_more_than_5_minutes_everyday_in_month/'
+    if not os.path.exists(device_stay_more_than_5_minutes_everyday_in_month_csv_dir):
+        os.makedirs(device_stay_more_than_5_minutes_everyday_in_month_csv_dir)
+    for item in os.listdir(device_csv_dir):
+        device_csv_name = device_csv_dir + item
+        df = pd.read_csv(device_csv_name, parse_dates=[7], encoding='utf-8', low_memory=False)
+        df['upload_time_year_month_day'] = df['upload_time_add_8hour'].dt.strftime('%Y%m%d')  # 多了一列年月日
+        df['upload_time_year_month_day'] = df['upload_time_year_month_day'].astype(str)
+        df_speed0 = df[df['speed'].astype(float) == 0.0] #获取速度为0的数据
+        gb = df_speed0.groupby(['latitude', 'longitude', 'upload_time_year_month_day'])#按照经纬度去分组
+        sub_dataframe_list = []
+        for i in gb.indices:
+            sub_df = pd.DataFrame(gb.get_group(i))
+            sub_df = sub_df.sort_values(by=['upload_time_add_8hour'])#年月日时分秒
+            count_row = sub_df.shape[0] #获取行数
+            if count_row>1: #每组至少要有2条数据
+                upload_time_add_8hour_first = sub_df['upload_time_add_8hour'].iloc[0]  # 取组内第一个upload_time_add_8hour
+                upload_time_add_8hour_last = sub_df['upload_time_add_8hour'].iloc[-1]  # 取组内第一个upload_time_add_8hour
+                minutes_diff = (upload_time_add_8hour_last - upload_time_add_8hour_first).total_seconds() / 60.0
+                if minutes_diff >= 5:
+                    df_first_row  = sub_df.iloc[0:1,:]
+                    sub_dataframe_list.append(df_first_row)
+
+        if sub_dataframe_list:
+            result = pd.concat(sub_dataframe_list)
+            result = result.sort_values(by=['upload_time'])
+            device_id = df['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+            marketer_name = df['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+            car_num = df['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+            upload_time_year_month = df['upload_time_year_month'].iloc[0]  # 取组内第一个upload_time_year_month用于存csv用
+            upload_time_year_month_day = df['upload_time_year_month_day'].iloc[0]  # 取组内第一个upload_time_year_month_day用于存csv用
+            result.to_csv(device_stay_more_than_5_minutes_everyday_in_month_csv_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month) + '.csv', index=False, mode='w', header=True,encoding='utf-8')
+
 
 def get_data_from_common_car_info_and_marketer_info():
     '''从howetech.common_car_info获取全表数据'''
@@ -682,7 +710,8 @@ if __name__ == '__main__':
     # splitCarAndPersonToCSV()
     #draw_with_folium_all_points_maker_style()
     # splitMonthDataToDayData()
-    use_everyday_data_to_draw_with_folium_maker()
+    # use_everyday_data_to_draw_with_folium_maker()
+    use_everyday_stay_more_than_5_minutes_to_generate_month_csv()
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
