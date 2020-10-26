@@ -197,7 +197,7 @@ def draw_with_folium_all_points_and_dbscan_center_circle_style():
     if not os.path.exists(folium_all_points_and_dbscan_center_circle_html_dir):
         os.makedirs(folium_all_points_and_dbscan_center_circle_html_dir)
 
-    for item in os.listdir(all_device_csv_dir):
+    for item in os.listdir(dbscan_center_coordinates_csv_dir):
         '''处理dbscan聚类后中心点坐标'''
         dbscan_center_coordinates_csv_name = dbscan_center_coordinates_csv_dir + item
         df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
@@ -216,7 +216,7 @@ def draw_with_folium_all_points_and_dbscan_center_circle_style():
         m = folium.Map(location=[latitude_center, longitude_center], zoom_start=10, control_scale=True)
         for index, row in X.iterrows():
             element_count_in_this_cluster = int(row['length'])
-            popup = folium.Popup('该中心点周围共有'+str(element_count_in_this_cluster)+'个停留点', show=True, max_width=400)#show=True代表地图加载是显示簇心周围有几个maker
+            popup = folium.Popup('该中心点周围共有'+str(element_count_in_this_cluster)+'个停留点', show=True, max_width=400)#show=True代表地图加载时显示簇心周围有几个maker
             folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup,color='red', fill=True,fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
             # folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
 
@@ -258,7 +258,7 @@ def draw_with_folium_all_points_and_dbscan_center_maker_style():
     if not os.path.exists(folium_all_points_and_dbscan_center_maker_html_dir):
         os.makedirs(folium_all_points_and_dbscan_center_maker_html_dir)
 
-    for item in os.listdir(all_device_csv_dir):
+    for item in os.listdir(dbscan_center_coordinates_csv_dir):
         '''处理dbscan聚类后中心点坐标'''
         dbscan_center_coordinates_csv_name = dbscan_center_coordinates_csv_dir + item
         df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
@@ -277,7 +277,7 @@ def draw_with_folium_all_points_and_dbscan_center_maker_style():
         m = folium.Map(location=[latitude_center, longitude_center], zoom_start=10, control_scale=True)
         for index, row in X.iterrows():
             element_count_in_this_cluster = int(row['length'])
-            popup = folium.Popup('该中心点周围共有'+str(element_count_in_this_cluster)+'个停留点', show=True, max_width=400)#show=True代表地图加载是显示簇心周围有几个maker
+            popup = folium.Popup('该中心点周围共有'+str(element_count_in_this_cluster)+'个停留点', show=True, max_width=400)#show=True代表地图加载时显示簇心周围有几个maker
             # folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup,color='red', fill=True,fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
             folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
 
@@ -346,14 +346,21 @@ def dbscan_get_center_coordinates():
         kms_per_rad = 6371.0088  # mean radius of the earth
         # epsilon = 1.5 / kms_per_rad  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. This is not a maximum bound on the distances of points within a cluster. This is the most important DBSCAN parameter to choose appropriately for your data set and distance function. default=0.5
         epsilon = 0.5 / kms_per_rad  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. This is not a maximum bound on the distances of points within a cluster. This is the most important DBSCAN parameter to choose appropriately for your data set and distance function. default=0.5
-        dbsc = (DBSCAN(eps=epsilon, min_samples=1, algorithm='ball_tree', metric='haversine').fit(np.radians(X)))
+        dbsc = (DBSCAN(eps=epsilon, min_samples=5, algorithm='ball_tree', metric='haversine').fit(np.radians(X)))
         # dbsc = (DBSCAN(eps=epsilon, min_samples=1,n_jobs=1).fit(np.radians(X)))
         fac_cluster_labels = dbsc.labels_
         values, counts = np.unique(fac_cluster_labels, return_counts=True) #获取聚类簇的索引和每个簇对应元素数量
         # a= {k: v for k, v in zip(values, counts)}
         cent_length = counts.tolist()  # 每个簇中元素的长度
         # get the number of clusters
-        num_clusters = len(set(dbsc.labels_))
+        set_dbscan_labels = set(dbsc.labels_)
+        if set_dbscan_labels:
+            if -1 in set_dbscan_labels:  # -1为噪音
+                set_dbscan_labels.discard(-1)  # 把-1从集合中删除
+                del (cent_length[0])  # 删除cent_length中第一个元素，也就是-1
+        if not set_dbscan_labels:  # 如果集合为空，说明没有可聚类对象集合中
+            continue
+        num_clusters = len(set_dbscan_labels)
         # turn the clusters into a pandas series,where each element is a cluster of points
         dbsc_clusters = pd.Series([X[fac_cluster_labels == n] for n in range(num_clusters)])
         # get centroid of each cluster
@@ -426,7 +433,7 @@ if __name__ == '__main__':
     closeConn() #关闭数据库连接
     list_to_csv(remain_statistic_list)
     split_big_csv_to_small_csv()
-    draw_with_echarts_scatter() #使用pyecharts画散点图
+    # draw_with_echarts_scatter() #使用pyecharts画散点图
     dbscan_get_center_coordinates()#使用所有停留轨迹生成聚类中心坐标csv文件
     draw_with_folium_all_points_and_dbscan_center_circle_style()#中心点是圆
     draw_with_folium_all_points_and_dbscan_center_maker_style()#中心点是maker
