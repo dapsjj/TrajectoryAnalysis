@@ -15,6 +15,7 @@ import pymysql
 import configparser
 import csv
 import folium
+from selenium import webdriver
 
 
 
@@ -411,7 +412,7 @@ def use_everyday_data_to_draw_with_folium_maker():
 
 
 def use_everyday_stay_more_than_5_minutes_to_generate_month_csv():
-    '''使用device_data轨迹数据中每天停留超过5分钟的坐标去生成一个月的停留点csv'''
+    '''使用device_data轨迹数据中每天停留超过5分钟的坐标去生成一个月的停留点csv，每天速度为0的同一个经纬度至少要有2条数据，且组内的第一条数据要与最后一条数据相差5分钟才被认为是停留点'''
     device_csv_dir = r'E:/test_opencv/轨迹分析/device_csv/'
     device_stay_more_than_5_minutes_everyday_in_month_csv_dir = r'E:/test_opencv/轨迹分析/device_stay_more_than_5_minutes_everyday_in_month/'
     if not os.path.exists(device_stay_more_than_5_minutes_everyday_in_month_csv_dir):
@@ -445,6 +446,131 @@ def use_everyday_stay_more_than_5_minutes_to_generate_month_csv():
             upload_time_year_month = df['upload_time_year_month'].iloc[0]  # 取组内第一个upload_time_year_month用于存csv用
             upload_time_year_month_day = df['upload_time_year_month_day'].iloc[0]  # 取组内第一个upload_time_year_month_day用于存csv用
             result.to_csv(device_stay_more_than_5_minutes_everyday_in_month_csv_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month) + '.csv', index=False, mode='w', header=True,encoding='utf-8')
+
+
+def dbscan_get_device_center_coordinates():
+    '''使用每辆车每个月速度为0超过5分钟的坐标，生成dbscan簇心'''
+    device_stay_more_than_5_minutes_everyday_in_month_csv_dir = r'E:/test_opencv/轨迹分析/device_stay_more_than_5_minutes_everyday_in_month/'
+    dbscan_get_device_center_coordinates_csv_dir = r'E:/test_opencv/轨迹分析/dbscan_get_device_center_coordinates_csv/'
+    if not os.path.exists(device_stay_more_than_5_minutes_everyday_in_month_csv_dir):
+        os.makedirs(device_stay_more_than_5_minutes_everyday_in_month_csv_dir)
+    if not os.path.exists(dbscan_get_device_center_coordinates_csv_dir):
+        os.makedirs(dbscan_get_device_center_coordinates_csv_dir)
+    for item in os.listdir(device_stay_more_than_5_minutes_everyday_in_month_csv_dir):
+        csvlName = device_stay_more_than_5_minutes_everyday_in_month_csv_dir + item
+        df = pd.read_csv(csvlName, encoding='utf-8', low_memory=False)
+        length_df = len(df)
+        # X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        X = df[['latitude', 'longitude']]
+        device_id = df['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        marketer_name = df['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+        car_id = df['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = df['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        upload_time_year_month = df['upload_time_year_month'].iloc[0]  # 取组内第一个upload_time_year_month用于存csv用
+
+        # convert eps to radians for use by haversine
+        kms_per_rad = 6371.0088  # mean radius of the earth
+        # epsilon = 1.5 / kms_per_rad  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. This is not a maximum bound on the distances of points within a cluster. This is the most important DBSCAN parameter to choose appropriately for your data set and distance function. default=0.5
+        epsilon = 0.5 / kms_per_rad  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. This is not a maximum bound on the distances of points within a cluster. This is the most important DBSCAN parameter to choose appropriately for your data set and distance function. default=0.5
+        dbsc = (DBSCAN(eps=epsilon, min_samples=1, algorithm='ball_tree', metric='haversine').fit(np.radians(X)))
+        # dbsc = (DBSCAN(eps=epsilon, min_samples=1,n_jobs=1).fit(np.radians(X)))
+        fac_cluster_labels = dbsc.labels_
+        values, counts = np.unique(fac_cluster_labels, return_counts=True) #获取聚类簇的索引和每个簇对应元素数量
+        # a= {k: v for k, v in zip(values, counts)}
+        cent_length = counts.tolist()  # 每个簇中元素的长度
+        # get the number of clusters
+        set_dbscan_labels = set(dbsc.labels_)
+        if set_dbscan_labels:
+            if -1 in set_dbscan_labels: #-1为噪音
+                set_dbscan_labels.discard(-1) #把-1从集合中删除
+                del (cent_length[0]) #删除cent_length中第一个元素，也就是-1
+        if not set_dbscan_labels: #如果集合为空，说明没有可聚类对象集合中
+            continue
+        num_clusters = len(set_dbscan_labels)
+        # turn the clusters into a pandas series,where each element is a cluster of points
+        dbsc_clusters = pd.Series([X[fac_cluster_labels == n] for n in range(num_clusters)])
+        # get centroid of each cluster
+        fac_centroids = dbsc_clusters.map(get_centroid)
+        # unzip the list of centroid points (lat, lon) tuples into separate lat and lon lists
+        cent_lats, cent_lons = zip(*fac_centroids)
+        # from these lats/lons create a new df of one representative point for eac cluster
+        centroids_pd = pd.DataFrame({'longitude': cent_lons, 'latitude': cent_lats, 'length':cent_length})
+        centroids_pd['device_id'] = device_id
+        centroids_pd['marketer_name'] = marketer_name
+        centroids_pd['car_id'] = car_id
+        centroids_pd['car_num'] = car_num
+        centroids_pd['upload_time_year_month'] = upload_time_year_month
+        centroids_pd.to_csv(dbscan_get_device_center_coordinates_csv_dir  + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month) + '.csv', index=False, mode='w', header=True,encoding='utf-8')
+
+
+def draw_with_folium_all_points_and_dbscan_center_circle_style():
+    '''先使用maker聚类中心生成簇心，再使用每辆车每个月的停留点作成maker坐标，中心点是圆'''
+    device_stay_more_than_5_minutes_everyday_in_month_csv_dir = r'E:/test_opencv/轨迹分析/device_stay_more_than_5_minutes_everyday_in_month/' #所有车辆坐标csv
+    dbscan_get_device_center_coordinates_csv_dir = r'E:/test_opencv/轨迹分析/dbscan_get_device_center_coordinates_csv/' #中心点csv
+    folium_all_points_and_dbscan_center_circle_html_dir = r'E:/test_opencv/轨迹分析/folium_all_points_and_dbscan_center_circle_html/'
+    if not os.path.exists(device_stay_more_than_5_minutes_everyday_in_month_csv_dir):
+        os.makedirs(device_stay_more_than_5_minutes_everyday_in_month_csv_dir)
+    if not os.path.exists(dbscan_get_device_center_coordinates_csv_dir):
+        os.makedirs(dbscan_get_device_center_coordinates_csv_dir)
+    if not os.path.exists(folium_all_points_and_dbscan_center_circle_html_dir):
+        os.makedirs(folium_all_points_and_dbscan_center_circle_html_dir)
+
+    for item in os.listdir(dbscan_get_device_center_coordinates_csv_dir):
+        '''处理dbscan聚类后中心点坐标'''
+        dbscan_center_coordinates_csv_name = dbscan_get_device_center_coordinates_csv_dir + item
+        df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
+        length_df = len(df)
+        # 计算dataframe经纬度中心坐标
+        longitude_center = df['longitude'].mean()
+        latitude_center = df['latitude'].mean()
+        # X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        X = df
+        device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        marketer_name = X['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+        car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        upload_time_year_month = X['upload_time_year_month'].iloc[0]  # 取组内第一个upload_time_year_month用于存csv用
+        m = folium.Map(location=[latitude_center, longitude_center], zoom_start=10, control_scale=True)
+        for index, row in X.iterrows():
+            element_count_in_this_cluster = int(row['length'])
+            popup = folium.Popup('该中心点周围共有'+str(element_count_in_this_cluster)+'个停留点', show=True, max_width=400)#show=True代表地图加载时显示簇心周围有几个maker
+            folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup,color='red', fill=True,fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
+            # folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
+
+
+        '''处理所有坐标'''
+        device_stay_more_than_5_minutes_everyday_in_month_csv_name = device_stay_more_than_5_minutes_everyday_in_month_csv_dir + item
+        df = pd.read_csv(device_stay_more_than_5_minutes_everyday_in_month_csv_name, encoding='utf-8', low_memory=False)
+        length_df = len(df)
+        # 计算dataframe经纬度中心坐标
+        longitude_center = df['longitude'].mean()
+        latitude_center = df['latitude'].mean()
+        # X = df.drop_duplicates(subset=['longitude', 'latitude'])
+        X = df
+        device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+        marketer_name = X['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+        car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+        car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+        upload_time_year_month = X['upload_time_year_month'].iloc[0]  # 取组内第一个upload_time_year_month用于存csv用
+        # m = folium.Map(location=[latitude_center, longitude_center],zoom_start=12,control_scale=True)
+        for index, row in X.iterrows():
+            # folium.Circle(location=[row['remain_latitude'], row['remain_longitude']],radius=100,color='red',fill=False).add_to(m) #radius单位是米
+            folium.Marker(location=[row['latitude'], row['longitude']]).add_to(m) #radius单位是米
+
+        url = folium_all_points_and_dbscan_center_circle_html_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month) + '.html'
+        m.save(url)
+        # save_screen_shot(url) #html截图
+
+def save_screen_shot(para_url):
+    '''打开浏览器并且截图'''
+    browser = webdriver.Chrome(r"E:/chromedriver_win32/chromedriver.exe")
+    # browser.set_window_size(4000, 3000)  # choose a resolution
+    browser.get(para_url)
+    # You may need to add time.sleep(seconds) here
+    time.sleep(5)
+    image_name = para_url.split('.')[0]+'.png'
+    browser.save_screenshot(image_name)
+    browser.close()
 
 
 def get_data_from_common_car_info_and_marketer_info():
@@ -712,6 +838,8 @@ if __name__ == '__main__':
     # splitMonthDataToDayData()
     # use_everyday_data_to_draw_with_folium_maker()
     use_everyday_stay_more_than_5_minutes_to_generate_month_csv()
+    dbscan_get_device_center_coordinates()
+    draw_with_folium_all_points_and_dbscan_center_circle_style()  # 中心点是圆
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
