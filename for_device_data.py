@@ -561,6 +561,77 @@ def draw_with_folium_all_points_and_dbscan_center_circle_style():
         m.save(url)
         # save_screen_shot(url) #html截图
 
+def save_device_center_by_year():
+    '''按照年把每辆车的数据放到指定文件夹'''
+    device_center_save_by_year_csv_dir = r'E:/test_opencv/轨迹分析/device_center_save_by_year/'
+    dbscan_get_device_center_coordinates_csv_dir = r'E:/test_opencv/轨迹分析/dbscan_get_device_center_coordinates_csv/'  # 中心点csv
+    if not os.path.exists(device_center_save_by_year_csv_dir):
+        os.makedirs(device_center_save_by_year_csv_dir)
+
+    for item in os.listdir(dbscan_get_device_center_coordinates_csv_dir):
+        csvlName = dbscan_get_device_center_coordinates_csv_dir + item
+        year = item.split('.')[0].split('_')[-1][:4]
+        car_num = item.split('.')[0].split('_')[1]
+        year_car_num = os.path.join(year,car_num)
+        target_dir = device_center_save_by_year_csv_dir + year_car_num
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
+        shutil.copy2(csvlName, target_dir)  # 把车的csv复制到车对应的年份的文件夹
+
+
+def draw_with_folium_by_device_and_year_dbscan_center_circle_style():
+    '''使用每辆车每个月的聚类中心坐标按照1-12月不同颜色去画圆
+    每年、每辆车生成一个html,html中12种颜色代表12个月
+    '''
+    device_center_save_by_year_csv_dir = r'E:/test_opencv/轨迹分析/device_center_save_by_year/'
+    folium_device_center_save_by_year_circle_html_dir = r'E:/test_opencv/轨迹分析/folium_device_center_save_by_year_circle_html/'
+    if not os.path.exists(folium_device_center_save_by_year_circle_html_dir):
+        os.makedirs(folium_device_center_save_by_year_circle_html_dir)
+    for root, dirs, files in os.walk(device_center_save_by_year_csv_dir):
+        longitude_center_list = []
+        latitude_center_list = []
+        for file in files:
+            if os.path.isfile(os.path.join(root, file)):
+                dbscan_center_coordinates_csv_name = os.path.join(root, file)
+                '''处理dbscan聚类后中心点坐标'''
+                df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
+                # 计算dataframe经纬度中心坐标
+                longitude_center = df['longitude'].mean()
+                latitude_center = df['latitude'].mean()
+                longitude_center_list.append(longitude_center)
+                latitude_center_list.append(latitude_center)
+
+        if longitude_center_list and latitude_center_list:
+            longitude_cent = np.mean(longitude_center_list)#年度中心
+            latitude_cent = np.mean(latitude_center_list)#年度中心
+        else:
+            continue
+
+        m = folium.Map(location=[latitude_cent, longitude_cent], zoom_start=10, control_scale=True)
+        for file in files:
+            if os.path.isfile(os.path.join(root, file)):
+                dbscan_center_coordinates_csv_name = os.path.join(root, file)
+                '''处理dbscan聚类后中心点坐标'''
+                df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
+                X = df
+                device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+                marketer_name = X['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+                car_id = X['car_id'].iloc[0]  # 取组内第一个car_id用于存csv用
+                car_num = X['car_num'].iloc[0]  # 取组内第一个car_num用于存csv用
+                upload_time_year_month = str(X['upload_time_year_month'].iloc[0])  # 取组内第一个upload_time_year_month用于存csv用
+                year_month = upload_time_year_month[0:4]+'年'+upload_time_year_month[4:6]+'月'
+
+                for index, row in X.iterrows():
+                    element_count_in_this_cluster = int(row['length'])
+                    popup = folium.Popup(year_month, show=True,max_width=400)  # show=True代表地图加载时显示
+                    folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup, color='red',fill=True, fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
+                    # folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
+
+        url = folium_device_center_save_by_year_circle_html_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month[0:4]) + '.html'
+        m.save(url)
+
+
+
 def save_screen_shot(para_url):
     '''打开浏览器并且截图'''
     browser = webdriver.Chrome(r"E:/chromedriver_win32/chromedriver.exe")
@@ -834,12 +905,14 @@ if __name__ == '__main__':
     # merge_device_data_and_common_car_info()
     # delete_not_need_analysis_data_from_merge_device_data()
     # splitCarAndPersonToCSV()
-    #draw_with_folium_all_points_maker_style()
+    # draw_with_folium_all_points_maker_style()
     # splitMonthDataToDayData()
     # use_everyday_data_to_draw_with_folium_maker()
-    use_everyday_stay_more_than_5_minutes_to_generate_month_csv()
-    dbscan_get_device_center_coordinates()
-    draw_with_folium_all_points_and_dbscan_center_circle_style()  # 中心点是圆
+    # use_everyday_stay_more_than_5_minutes_to_generate_month_csv()
+    # dbscan_get_device_center_coordinates()
+    # draw_with_folium_all_points_and_dbscan_center_circle_style()  # 中心点是圆
+    # save_device_center_by_year()
+    draw_with_folium_by_device_and_year_dbscan_center_circle_style()
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
