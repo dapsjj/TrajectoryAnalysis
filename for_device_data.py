@@ -394,7 +394,7 @@ def draw_with_folium_all_points_maker_style():
     if not os.path.exists(continuous_abnormal_device_csv_dir):
         os.makedirs(continuous_abnormal_device_csv_dir)
 
-    #对正常轨迹使用folium画图
+    #对正常轨迹使用folium画图(数据量超大)
     '''
     for item in os.listdir(normal_device_csv_dir):
         #处理所有坐标
@@ -1022,7 +1022,7 @@ if __name__ == '__main__':
     # dbscan_get_device_center_coordinates()
     # draw_with_folium_all_points_and_dbscan_center_circle_style()  # 中心点是圆
     # save_device_center_by_year()
-    draw_with_folium_by_device_and_year_dbscan_center_circle_style()
+    # draw_with_folium_by_device_and_year_dbscan_center_circle_style()
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
