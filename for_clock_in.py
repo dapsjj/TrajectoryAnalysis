@@ -18,6 +18,108 @@ from cassandra.cluster import Cluster
 # 引入DCAwareRoundRobinPolicy模块，可用来自定义驱动程序的行为
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import SimpleStatement
+import shutil
+from branca.element import Template, MacroElement
+
+template = """
+{% macro html(this, kwargs) %}
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+
+  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+  <script>
+  $( function() {
+    $( "#maplegend" ).draggable({
+                    start: function (event, ui) {
+                        $(this).css({
+                            right: "auto",
+                            top: "auto",
+                            bottom: "auto"
+                        });
+                    }
+                });
+    });
+
+  </script>
+</head>
+<body>
+
+
+<div id='maplegend' class='maplegend' 
+    style='position: absolute; z-index:9999; border:2px solid grey; background-color:rgba(255, 255, 255, 0.8);
+     border-radius:6px; padding: 10px; font-size:14px; right: 20px; bottom: 20px;'>
+
+<div class='legend-title'>图例</div>
+<div class='legend-scale'>
+  <ul class='legend-labels'>
+    <li><span style='background:#FF0000;opacity:0.7;'></span>1月</li>
+    <li><span style='background:#00FF00;opacity:0.7;'></span>2月</li>
+    <li><span style='background:#0000FF;opacity:0.7;'></span>3月</li>
+    <li><span style='background:#FFFF00;opacity:0.7;'></span>4月</li>
+    <li><span style='background:#800080;opacity:0.7;'></span>5月</li>
+    <li><span style='background:#FFC0CB;opacity:0.7;'></span>6月</li>
+    <li><span style='background:#00FFFF;opacity:0.7;'></span>7月</li>
+    <li><span style='background:#A52A2A;opacity:0.7;'></span>8月</li>
+    <li><span style='background:#FFA500;opacity:0.7;'></span>9月</li>
+    <li><span style='background:#DC143C;opacity:0.7;'></span>10月</li>
+    <li><span style='background:#228B22;opacity:0.7;'></span>11月</li>
+    <li><span style='background:#708090;opacity:0.7;'></span>12月</li>
+  </ul>
+</div>
+</div>
+
+</body>
+</html>
+
+<style type='text/css'>
+  .maplegend .legend-title {
+    text-align: left;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 90%;
+    }
+  .maplegend .legend-scale ul {
+    margin: 0;
+    margin-bottom: 5px;
+    padding: 0;
+    float: left;
+    list-style: none;
+    }
+  .maplegend .legend-scale ul li {
+    font-size: 80%;
+    list-style: none;
+    margin-left: 0;
+    line-height: 18px;
+    margin-bottom: 2px;
+    }
+  .maplegend ul.legend-labels li span {
+    display: block;
+    float: left;
+    height: 16px;
+    width: 30px;
+    margin-right: 5px;
+    margin-left: 0;
+    border: 1px solid #999;
+    }
+  .maplegend .legend-source {
+    font-size: 80%;
+    color: #777;
+    clear: both;
+    }
+  .maplegend a {
+    color: #777;
+    }
+</style>
+{% endmacro %}"""
+
 
 
 now_date = datetime.now().strftime('%Y%m%d')
@@ -382,6 +484,80 @@ def draw_with_folium_year_month_points_and_dbscan_center_maker_style():
         # save_screen_shot(url) #html截图
 
 
+def save_device_center_by_year():
+    '''按照年把每人的数据放到指定文件夹'''
+    device_center_save_by_year_csv_dir = r'E:/test_opencv/员工打卡分析/device_center_save_by_year/'
+    dbscan_get_device_center_coordinates_by_year_month_csv_dir = r'E:/test_opencv/员工打卡分析/dbscan_get_center_coordinates_by_year_month_csv/'  # 年月中心点csv
+    if not os.path.exists(device_center_save_by_year_csv_dir):
+        os.makedirs(device_center_save_by_year_csv_dir)
+
+    for item in os.listdir(dbscan_get_device_center_coordinates_by_year_month_csv_dir):
+        csvlName = dbscan_get_device_center_coordinates_by_year_month_csv_dir + item
+        year = item.split('.')[0].split('_')[-1][:4]
+        person_name = item.split('.')[0].split('_')[0]
+        year_person_name = os.path.join(year,person_name)
+        target_dir = device_center_save_by_year_csv_dir + year_person_name
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
+        shutil.copy2(csvlName, target_dir)  # 把人的csv复制到人对应的年份的文件夹
+
+
+def draw_with_folium_by_device_and_year_dbscan_center_circle_style():
+    '''使用每人每个月的聚类中心坐标按照1-12月不同颜色去画圆
+    每年、每人生成一个html,html中12种颜色代表12个月
+    '''
+    #12种颜色分别是红、绿、蓝、黄、紫、粉、青、棕、橙、赤红、森林绿、板岩灰
+    twelve_months_color_list = ['#FF0000','#00FF00','#0000FF','#FFFF00','#800080','#FFC0CB','#00FFFF','#A52A2A','#FFA500','#DC143C','#228B22','#708090']
+    device_center_save_by_year_csv_dir = r'E:/test_opencv/员工打卡分析/device_center_save_by_year/'
+    folium_device_center_save_by_year_circle_html_dir = r'E:/test_opencv/员工打卡分析/folium_device_center_save_by_year_circle_html/'
+    if not os.path.exists(folium_device_center_save_by_year_circle_html_dir):
+        os.makedirs(folium_device_center_save_by_year_circle_html_dir)
+    for root, dirs, files in os.walk(device_center_save_by_year_csv_dir):
+        longitude_center_list = []
+        latitude_center_list = []
+        for file in files:
+            if os.path.isfile(os.path.join(root, file)):
+                dbscan_center_coordinates_csv_name = os.path.join(root, file)
+                '''处理dbscan聚类后中心点坐标'''
+                df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
+                # 计算dataframe经纬度中心坐标
+                longitude_center = df['longitude'].mean()
+                latitude_center = df['latitude'].mean()
+                longitude_center_list.append(longitude_center)
+                latitude_center_list.append(latitude_center)
+
+        if longitude_center_list and latitude_center_list:
+            longitude_cent = np.mean(longitude_center_list)#年度中心
+            latitude_cent = np.mean(latitude_center_list)#年度中心
+        else:
+            continue
+
+        m = folium.Map(location=[latitude_cent, longitude_cent], zoom_start=10, control_scale=True)
+        macro = MacroElement()
+        macro._template = Template(template)
+        m.get_root().add_child(macro)
+        for file in files:
+            if os.path.isfile(os.path.join(root, file)):
+                dbscan_center_coordinates_csv_name = os.path.join(root, file)
+                '''处理dbscan聚类后中心点坐标'''
+                df = pd.read_csv(dbscan_center_coordinates_csv_name, encoding='utf-8', low_memory=False)
+                X = df
+                device_id = X['device_id'].iloc[0]  # 取组内第一个device_id用于存csv用
+                marketer_name = X['marketer_name'].iloc[0]  # 取组内第一个marketer_name用于存csv用
+                clock_time_year_month = str(X['clock_time_year_month'].iloc[0])  # 取组内第一个clock_time_year_month用于存csv用
+                year_month = clock_time_year_month[0:4]+'年'+clock_time_year_month[4:6]+'月'
+                month = int(clock_time_year_month[4:6])
+                month_index  = month -1
+                month_color = twelve_months_color_list[month_index]
+                for index, row in X.iterrows():
+                    element_count_in_this_cluster = int(row['length'])
+                    popup = folium.Popup(year_month, show=True,max_width=400)  # show=True代表地图加载时显示
+                    folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup, color=month_color,fill=True, fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
+                    # folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
+        url = folium_device_center_save_by_year_circle_html_dir + str(marketer_name) + '_' + str(clock_time_year_month[0:4]) + '.html'
+        m.save(url)
+
+
 def save_screen_shot(para_url):
     '''打开浏览器并且截图'''
     browser = webdriver.Chrome(r"E:/chromedriver_win32/chromedriver.exe")
@@ -487,9 +663,10 @@ if __name__ == '__main__':
     # merge_clock_in_and_marketer_info()
     # split_big_csv_to_small_csv()
     # dbscan_get_center_coordinates_by_year_month()  # 使用所有打卡轨迹，按照年月生成聚类中心坐标csv文件
-    draw_with_folium_year_month_points_and_dbscan_center_circle_style()#中心点是圆
-    draw_with_folium_year_month_points_and_dbscan_center_maker_style()#中心点是maker
-
+    # draw_with_folium_year_month_points_and_dbscan_center_circle_style()#中心点是圆
+    # draw_with_folium_year_month_points_and_dbscan_center_maker_style()#中心点是maker
+    # save_device_center_by_year()
+    draw_with_folium_by_device_and_year_dbscan_center_circle_style()
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
