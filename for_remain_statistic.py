@@ -102,7 +102,7 @@ def read_dateConfig_file_set_year():
 
 
 def get_data_from_remain_statistic(para_year):
-    '''从howetech.remain_statistic获取指定年份的数据'''
+    '''从XXX.remain_statistic获取指定年份的数据'''
     try:
         sql = " select " \
               " remain_id, " \
