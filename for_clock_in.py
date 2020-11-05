@@ -237,8 +237,7 @@ def getClockInDataFromCassandra(para_ip,para_username,para_password):
         # 连接并创建一个会话
         session = cluster.connect()
         # 定义一条cql查询语句
-        # cql_str = 'select * from howetech.clock_in limit 5;'
-        cql_str = 'select * from howetech.clock_in ;' # clock_in表主要字段staff_id clock_time device_id latitude longitude
+        cql_str = 'select * from XXX.clock_in ;' # clock_in表主要字段staff_id clock_time device_id latitude longitude
         simple_statement = SimpleStatement(cql_str, consistency_level=ConsistencyLevel.ONE,fetch_size=1000000)#不加fetch_size默认智能获取5000行
         # 对语句的执行设置超时时间为None
         execute_result = session.execute(simple_statement, timeout=None)
@@ -258,7 +257,7 @@ def getClockInDataFromCassandra(para_ip,para_username,para_password):
 
 
 def get_data_from_marketer_info():
-    '''从howetech.common_car_info获取全表数据'''
+    '''从XXX.common_car_info获取全表数据'''
     try:
         sql = " select " \
               " t1.device_id, " \
