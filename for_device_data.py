@@ -226,7 +226,7 @@ def cassandraDataToDataframe():
 
     # 给csv增加一列年月
     # df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20201007.csv', encoding='utf-8', parse_dates=[1], nrows=5)
-    df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20201007.csv', encoding='utf-8', parse_dates=[1],
+    df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20201103.csv', encoding='utf-8', parse_dates=[1],
                      names=['device_id', 'upload_time', 'latitude', 'longitude', 'mileage', 'other_vals', 'speed'])
     device_data_split_by_year_month_dir = r'E:/test_opencv/轨迹分析/device_data_split_by_year_month/'
     if not os.path.exists(device_data_split_by_year_month_dir):
@@ -736,7 +736,6 @@ def draw_with_folium_by_device_and_year_dbscan_center_circle_style():
                     popup = folium.Popup(year_month, show=True,max_width=400)  # show=True代表地图加载时显示
                     folium.Circle(location=[row['latitude'], row['longitude']], radius=500, popup=popup, color=month_color,fill=True, fill_opacity=0.1).add_to(m)  # radius单位是米 #与dbscan半径对应
                     # folium.Marker(location=[row['latitude'], row['longitude']], popup=popup, icon=folium.Icon(color='red')).add_to(m) #红色标记
-        m.get_root().add_child(macro)
         url = folium_device_center_save_by_year_circle_html_dir + str(marketer_name) + '_' + str(car_num) + '_' + str(upload_time_year_month[0:4]) + '.html'
         m.save(url)
 
@@ -1007,9 +1006,9 @@ if __name__ == '__main__':
     logger.info("Program starts,now time is:" + str(time_start))
     server, user, password, database = read_dateConfig_file_set_database()  # 读取配置文件中的数据库信息
     year,month = read_dateConfig_file_set_year_month()  # 读取配置文件中的year,查询year、month对应的年份数据
-    getConn()  # 数据库连接对象
-    common_car_info_and_marketer_info_list = get_data_from_common_car_info_and_marketer_info()
-    closeConn()  # 关闭数据库连接
+    # getConn()  # 数据库连接对象
+    # common_car_info_and_marketer_info_list = get_data_from_common_car_info_and_marketer_info()
+    # closeConn()  # 关闭数据库连接
     # list_to_csv(common_car_info_and_marketer_info_list)#把车牌号和人名的list保存到csv中
     # cassandraDataToDataframe()
     # merge_device_data_and_common_car_info()
@@ -1017,12 +1016,12 @@ if __name__ == '__main__':
     # splitCarAndPersonToCSV()
     # draw_with_folium_all_points_maker_style()
     # splitMonthDataToDayData()
-    # use_everyday_data_to_draw_with_folium_maker()
+    # use_everyday_data_to_draw_with_folium_maker() #太多了,不要了
     # use_everyday_stay_more_than_5_minutes_to_generate_month_csv()
     # dbscan_get_device_center_coordinates()
     # draw_with_folium_all_points_and_dbscan_center_circle_style()  # 中心点是圆
     # save_device_center_by_year()
-    # draw_with_folium_by_device_and_year_dbscan_center_circle_style()
+    draw_with_folium_by_device_and_year_dbscan_center_circle_style()
     time_end = datetime.now()
     end = time.time()
     logger.info("Program ends,now time is:" + str(time_end))
