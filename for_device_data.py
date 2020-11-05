@@ -221,8 +221,8 @@ def cassandraDataToDataframe():
     '''加工device_data.csv的数据，增加8小时转换和年月'''
     # cd /usr/local/cassandra/bin
     # ./cqlsh
-    # USE howetech;
-    # COPY howetech.device_data  TO '/usr/local/cassandra/device_data_2020.csv';
+    # USE XXX;
+    # COPY XXX.device_data  TO '/usr/local/cassandra/device_data_2020.csv';
 
     # 给csv增加一列年月
     # df = pd.read_csv(r'E:/test_opencv/轨迹分析/device_data_20201007.csv', encoding='utf-8', parse_dates=[1], nrows=5)
@@ -754,7 +754,7 @@ def save_screen_shot(para_url):
 
 
 def get_data_from_common_car_info_and_marketer_info():
-    '''从howetech.common_car_info获取全表数据'''
+    '''从XXX.common_car_info获取全表数据'''
     try:
         sql = " select " \
               " t1.car_id, " \
@@ -782,8 +782,8 @@ def get_data_from_common_car_info_and_marketer_info():
 def downLoadDataToCsvFromContectRemoteDatabase():
     # cd /usr/local/cassandra/bin
     # ./cqlsh
-    # USE howetech;
-    # COPY howetech.device_data  TO '/usr/local/cassandra/device_data_2020.csv';
+    # USE XXX;
+    # COPY XXX.device_data  TO '/usr/local/cassandra/device_data_2020.csv';
 
     '''
     # 给csv增加一列年月
